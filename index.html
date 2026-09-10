@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#163c32">
+  <meta name="description" content="ONE 今日清单：一个简洁、免费的本地待办清单。">
+  <title>ONE · 今日清单</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="tasks.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <main class="workspace">
+    <header><a class="wordmark" href="./" aria-label="ONE 首页">one<span>●</span></a><span class="edition">留一点时间，做重要的事。</span></header>
+    <section class="intro" aria-labelledby="title"><p class="eyebrow">YOUR DAY, ONE THING AT A TIME</p><h1 id="title">今日清单<span>。</span></h1><p>把脑海里的事，放到这里。</p></section>
+    <section class="panel" aria-label="待办事项">
+      <form id="task-form"><label class="sr-only" for="task-input">新的待办事项</label><input id="task-input" placeholder="接下来，想做点什么？" maxlength="200" autocomplete="off" required><button class="add" type="submit">添加 <span aria-hidden="true">＋</span></button></form>
+      <div class="toolbar"><div class="filters" aria-label="任务筛选"><button type="button" data-filter="all" aria-pressed="true">全部</button><button type="button" data-filter="active" aria-pressed="false">待完成</button><button type="button" data-filter="done" aria-pressed="false">已完成</button></div><span id="count" role="status"></span></div>
+      <ul id="task-list" aria-label="任务列表"></ul>
+      <div id="empty" class="empty"><div class="empty-icon" aria-hidden="true">✓</div><h2 id="empty-title">从一件小事开始</h2><p id="empty-copy">添加你的第一个任务，让今天更有条理。</p></div>
+      <footer class="panel-footer"><span id="progress">慢慢来，一件一件完成。</span><button id="clear" type="button" disabled>清除已完成</button></footer>
+    </section>
+    <p id="notice" class="notice" role="status"></p>
+    <footer class="page-footer"><span>少一点忙乱，多一点专注。</span><span>仅保存在此浏览器 · 无需登录</span></footer>
+  </main>
+</body>
+</html>

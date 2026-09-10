@@ -1,0 +1,11 @@
+{
+  "name": "one-today",
+  "version": "1.0.0",
+  "private": true,
+  "description": "一个无需安装依赖的中文本地待办清单",
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check app.js && node --check tasks.js"
+  },
+  "engines": { "node": ">=18" }
+}
