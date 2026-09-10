@@ -3,26 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#163c32">
-  <meta name="description" content="ONE 今日清单：一个简洁、免费的本地待办清单。">
-  <title>ONE · 今日清单</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="tasks.js" defer></script>
-  <script src="app.js" defer></script>
+  <meta name="theme-color" content="#243ac5">
+  <meta name="description" content="检查 GitHub 公开仓库的 README 链接、启动命令和配置示例，定位到具体文件行。">
+  <title>ONE · 仓库体检</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
 </head>
 <body>
-  <main class="workspace">
-    <header><a class="wordmark" href="./" aria-label="ONE 首页">one<span>●</span></a><span class="edition">留一点时间，做重要的事。</span></header>
-    <section class="intro" aria-labelledby="title"><p class="eyebrow">YOUR DAY, ONE THING AT A TIME</p><h1 id="title">今日清单<span>。</span></h1><p>把脑海里的事，放到这里。</p></section>
-    <section class="panel" aria-label="待办事项">
-      <form id="task-form"><label class="sr-only" for="task-input">新的待办事项</label><input id="task-input" placeholder="接下来，想做点什么？" maxlength="200" autocomplete="off" required><button class="add" type="submit">添加 <span aria-hidden="true">＋</span></button></form>
-      <div class="toolbar"><div class="filters" aria-label="任务筛选"><button type="button" data-filter="all" aria-pressed="true">全部</button><button type="button" data-filter="active" aria-pressed="false">待完成</button><button type="button" data-filter="done" aria-pressed="false">已完成</button></div><span id="count" role="status"></span></div>
-      <ul id="task-list" aria-label="任务列表"></ul>
-      <div id="empty" class="empty"><div class="empty-icon" aria-hidden="true">✓</div><h2 id="empty-title">从一件小事开始</h2><p id="empty-copy">添加你的第一个任务，让今天更有条理。</p></div>
-      <footer class="panel-footer"><span id="progress">慢慢来，一件一件完成。</span><button id="clear" type="button" disabled>清除已完成</button></footer>
+  <header class="topbar"><a class="brand" href="/">one<span>/</span><small>仓库体检</small></a><a class="source" href="https://github.com/liiiyiiixiii/one" target="_blank" rel="noopener noreferrer">GitHub ↗</a></header>
+  <main>
+    <section class="intro"><p class="eyebrow">REPOSITORY CHECK</p><h1>别人能照着你的 README<br>把项目跑起来吗？</h1><p class="description">检查失效的文件引用、对不上的启动命令，以及缺少的配置示例。</p></section>
+    <section class="input-panel" aria-label="检查仓库">
+      <form id="audit-form"><label for="repository">GitHub 公开仓库</label><div class="input-row"><input id="repository" name="repository" type="text" maxlength="220" placeholder="owner/repo 或 https://github.com/owner/repo" required autocomplete="off" spellcheck="false" aria-describedby="input-help"><button id="submit" type="submit">开始检查 <span aria-hidden="true">→</span></button></div><div class="input-bottom"><p id="input-help">读取默认分支 · 不执行仓库代码</p><button id="example" type="button">试试 liiiyiiixiii/one ↗</button></div></form>
     </section>
-    <p id="notice" class="notice" role="status"></p>
-    <footer class="page-footer"><span>少一点忙乱，多一点专注。</span><span>仅保存在此浏览器 · 无需登录</span></footer>
+    <div id="status" role="status" aria-live="polite"></div>
+    <p id="error" class="error" role="alert" hidden></p>
+    <section id="report" aria-label="体检报告" hidden>
+      <div class="report-heading"><div><p class="eyebrow">检查结果</p><h2 id="repo-name"></h2><p id="snapshot" class="muted"></p></div><button id="download" class="secondary" type="button">下载 JSON 报告 ↓</button></div>
+      <div class="metrics"><div><strong id="errors">0</strong><span>确定的问题</span></div><div><strong id="warnings">0</strong><span>需要确认</span></div><div><strong id="checks">0</strong><span>已执行规则检查</span></div></div>
+      <div class="result-layout"><section aria-label="问题列表"><div class="filterbar" aria-label="结果筛选"><button type="button" data-filter="all" aria-pressed="true">全部</button><button type="button" data-filter="error" aria-pressed="false">问题</button><button type="button" data-filter="warning" aria-pressed="false">待确认</button><span id="finding-count"></span></div><div id="findings"></div><p id="no-findings" class="empty" hidden></p></section><aside class="coverage"><h3>这次检查了什么</h3><ul id="coverage-list"></ul><p>这是静态检查。通过检查不代表项目一定能运行。</p><details><summary id="skipped-summary">未检查的内容</summary><p>不验证外部网址、标题锚点、HTML 链接或未支持的 Markdown 语法；不安装依赖、不运行启动命令。</p><p>命令按每个代码块从 README 所在目录开始分析；跨代码块的工作目录不做推断。</p><ul id="skipped-list"></ul></details></aside></div>
+    </section>
+    <section id="before" class="before" aria-label="支持的检查"><article><span class="step">01 / 文档链接</span><h2>点开之后，文件还在吗？</h2><p>核对 Markdown 中的本地文件和图片引用，显示失效链接所在行。</p></article><article><span class="step">02 / 启动命令</span><h2>文档与代码对得上吗？</h2><p>核对 npm 脚本、锁文件，以及常见命令引用的脚本和依赖文件。</p></article><article><span class="step">03 / 配置示例</span><h2>第一步就缺文件吗？</h2><p>检查复制命令中的配置模板，提示可能缺少的环境变量示例。</p></article></section>
+    <footer>ONE · 面向项目维护者的小工具<span>结果对应一次提交，修复后可重新检查。</span></footer>
   </main>
 </body>
 </html>

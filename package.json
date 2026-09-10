@@ -1,11 +1,14 @@
 {
-  "name": "one-today",
-  "version": "1.0.0",
+  "name": "one-repo-check",
+  "version": "2.0.0",
+  "type": "module",
   "private": true,
-  "description": "一个无需安装依赖的中文本地待办清单",
+  "description": "检查 GitHub 公开仓库的文档链接、启动命令和配置示例",
   "scripts": {
+    "start": "node server.js",
+    "audit": "node cli.js",
     "test": "node --test",
-    "check": "node --check app.js && node --check tasks.js"
+    "check": "node --check app.js && node --check server.js && node --check cli.js && node --check lib/audit.js && node --check lib/github.js"
   },
-  "engines": { "node": ">=18" }
+  "engines": { "node": ">=22" }
 }

@@ -1,75 +1,88 @@
 'use strict';
-const model = window.OneTasks;
-const input = document.querySelector('#task-input');
-const list = document.querySelector('#task-list');
-const notice = document.querySelector('#notice');
-let tasks = [];
+const $ = selector => document.querySelector(selector);
+let report = null;
 let filter = 'all';
-let storageReadable = true;
-try { tasks = model.decode(localStorage.getItem(model.key)); }
-catch {
-  storageReadable = false;
-  notice.textContent = '无法读取已有数据。本次修改只在当前页面保留，以免覆盖原有内容。';
+let busy = false;
+function element(tag, text, className) {
+  const node = document.createElement(tag);
+  if (text !== undefined) node.textContent = text;
+  if (className) node.className = className;
+  return node;
 }
-function update(next) {
-  tasks = next;
-  if (storageReadable) {
-    try { localStorage.setItem(model.key, JSON.stringify(tasks)); notice.textContent = ''; }
-    catch { notice.textContent = '浏览器暂时无法保存，刷新或关闭页面可能丢失本次修改。'; }
+function renderFindings() {
+  const items = report.findings.filter(item => filter === 'all' || item.severity === filter);
+  $('#findings').replaceChildren();
+  for (const item of items) {
+    const card = element('article', undefined, `finding ${item.severity}`);
+    const top = element('div', undefined, 'finding-top');
+    top.append(element('span', item.severity === 'error' ? '问题' : '待确认', 'badge'), element('h3', item.title));
+    const source = element('a', item.file ? `${item.file}${item.line ? `:${item.line}` : ''} ↗` : '查看仓库 ↗');
+    source.href = item.url;
+    source.target = '_blank';
+    source.rel = 'noopener noreferrer';
+    card.append(top, source, element('pre', item.evidence, 'evidence'), element('p', item.suggestion, 'suggestion'));
+    $('#findings').append(card);
   }
-  render();
-}
-function render() {
-  list.replaceChildren();
-  const visible = model.select(tasks, filter);
-  const completed = tasks.filter(task => task.done).length;
-  for (const task of visible) {
-    const row = document.createElement('li');
-    row.className = `task${task.done ? ' done' : ''}`;
-    const label = document.createElement('label');
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.checked = task.done;
-    checkbox.dataset.id = task.id;
-    checkbox.addEventListener('change', () => {
-      update(model.toggle(tasks, task.id));
-      const remaining = [...list.querySelectorAll('input')].find(element => element.dataset.id === task.id);
-      (remaining || input).focus();
-    });
-    const text = document.createElement('span');
-    text.className = 'task-text';
-    text.textContent = task.text;
-    label.append(checkbox, text);
-    const remove = document.createElement('button');
-    remove.type = 'button';
-    remove.className = 'delete';
-    remove.textContent = '×';
-    remove.setAttribute('aria-label', `删除任务：${task.text}`);
-    remove.addEventListener('click', () => { update(model.remove(tasks, task.id)); input.focus(); });
-    row.append(label, remove);
-    list.append(row);
-  }
-  document.querySelector('#empty').hidden = visible.length > 0;
-  document.querySelector('#empty-title').textContent = filter === 'done' ? '还没有完成的任务' : filter === 'active' && tasks.length ? '都完成了，做得不错！' : '从一件小事开始';
-  document.querySelector('#empty-copy').textContent = filter === 'done' ? '完成一件事，就勾选它。' : filter === 'active' && tasks.length ? '给自己留一点休息时间。' : '添加你的第一个任务，让今天更有条理。';
-  document.querySelector('#count').textContent = `${tasks.length - completed} 项待完成`;
-  document.querySelector('#progress').textContent = tasks.length ? `已完成 ${completed} / ${tasks.length} 项` : '慢慢来，一件一件完成。';
-  document.querySelector('#clear').disabled = completed === 0;
+  $('#finding-count').textContent = `${items.length} 条`;
+  $('#no-findings').hidden = items.length > 0;
+  $('#no-findings').textContent = report.findings.length ? '当前分类没有结果。' : report.summary.checks === 0 ? '没有可执行的规则检查。请查看右侧范围说明，不能据此判断仓库没有问题。' : '本次检查范围内未发现问题。请结合覆盖范围和跳过项确认，实际运行仍需验证。';
   document.querySelectorAll('[data-filter]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.filter === filter)));
 }
-document.querySelector('#task-form').addEventListener('submit', event => {
-  event.preventDefault();
-  if (!input.value.trim()) { input.value = ''; input.focus(); return; }
-  filter = 'all';
-  update(model.add(tasks, input.value, crypto.randomUUID()));
-  input.value = '';
-  input.focus();
+function renderReport() {
+  $('#repo-name').textContent = report.repository;
+  const timestamp = new Date(report.checkedAt).toLocaleString('zh-CN', { hour12: false });
+  $('#snapshot').textContent = `${report.branch} · ${report.commit.slice(0, 7)} · ${timestamp}${report.cached ? ' · 两分钟内缓存' : ''}`;
+  for (const name of ['errors', 'warnings', 'checks']) $(`#${name}`).textContent = report.summary[name];
+  const coverage = report.coverage;
+  const labels = [`${coverage.documents.length} 份 README · ${coverage.manifests.length} 份依赖清单`, `${coverage.links} 次本地链接检查`, `${coverage.commands} 次命令文件检查`, `${coverage.configuration} 次配置检查`, `${coverage.externalLinks} 个外部链接、${coverage.anchorLinks} 个纯锚点未检查`];
+  $('#coverage-list').replaceChildren(...labels.map(text => element('li', text)));
+  $('#skipped-summary').textContent = `未检查的内容${coverage.skipped.length ? ` · ${coverage.skipped.length} 个跳过项` : ''}`;
+  $('#skipped-list').replaceChildren(...coverage.skipped.map(text => element('li', text)));
+  renderFindings();
+  $('#report').hidden = false;
+  $('#before').hidden = true;
+}
+async function run() {
+  if (busy) return;
+  const repository = $('#repository').value.trim();
+  if (!repository) { $('#repository').focus(); return; }
+  busy = true;
+  $('#submit').disabled = true;
+  $('#example').disabled = true;
+  $('#submit').textContent = '检查中…';
+  $('#report').hidden = true;
+  $('#error').hidden = true;
+  $('#status').textContent = '正在读取默认分支、README 和配置文件。通常需要几秒钟，大型仓库可能更久。';
+  $('#audit-form').setAttribute('aria-busy', 'true');
+  try {
+    const response = await fetch('/api/audit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ repository }), signal: AbortSignal.timeout(65_000) });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || '检查未完成，请重试。');
+    report = data;
+    filter = 'all';
+    renderReport();
+    $('#status').textContent = `检查完成：${report.summary.errors} 个问题，${report.summary.warnings} 个待确认项。`;
+  } catch (error) {
+    $('#status').textContent = '';
+    $('#error').textContent = error.name === 'TimeoutError' ? '检查超时，请稍后重试。' : error instanceof TypeError ? '无法连接本地服务，请确认 npm start 仍在运行。' : error.message;
+    $('#error').hidden = false;
+  } finally {
+    busy = false;
+    $('#submit').disabled = false;
+    $('#example').disabled = false;
+    $('#submit').textContent = '开始检查 →';
+    $('#audit-form').setAttribute('aria-busy', 'false');
+  }
+}
+$('#audit-form').addEventListener('submit', event => { event.preventDefault(); run(); });
+$('#example').addEventListener('click', () => { $('#repository').value = 'liiiyiiixiii/one'; run(); });
+document.querySelectorAll('[data-filter]').forEach(button => button.addEventListener('click', () => { filter = button.dataset.filter; if (report) renderFindings(); }));
+$('#download').addEventListener('click', () => {
+  if (!report) return;
+  const url = URL.createObjectURL(new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' }));
+  const anchor = element('a');
+  anchor.href = url;
+  anchor.download = `one-${report.repository.replace('/', '-')}-${report.commit.slice(0, 7)}.json`;
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 });
-document.querySelectorAll('[data-filter]').forEach(button => button.addEventListener('click', () => { filter = button.dataset.filter; render(); }));
-document.querySelector('#clear').addEventListener('click', () => { update(model.clearDone(tasks)); input.focus(); });
-window.addEventListener('storage', event => {
-  if (event.key !== model.key && event.key !== null) return;
-  try { tasks = model.decode(event.newValue); storageReadable = true; notice.textContent = ''; render(); }
-  catch { storageReadable = false; notice.textContent = '其他页面的数据无法读取，本页已暂停保存，请先备份已有数据。'; }
-});
-render();
